@@ -1,0 +1,18 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Persisted runtime state (registry + service data)
+server/data/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

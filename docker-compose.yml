@@ -1,0 +1,59 @@
+services:
+  registry:
+    build:
+      context: ./server
+    command: node registry.js
+    ports:
+      - "5000:5000"
+    volumes:
+      - server-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
+  police:
+    build:
+      context: ./server
+    command: node services/police.js
+    environment:
+      - REGISTRY_URL=ws://registry:5000
+    ports:
+      - "5001:5001"
+    volumes:
+      - server-data:/app/data
+    depends_on:
+      registry:
+        condition: service_healthy
+
+  hospital:
+    build:
+      context: ./server
+    command: node services/hospital.js
+    environment:
+      - REGISTRY_URL=ws://registry:5000
+    ports:
+      - "5002:5002"
+    volumes:
+      - server-data:/app/data
+    depends_on:
+      registry:
+        condition: service_healthy
+
+  fire:
+    build:
+      context: ./server
+    command: node services/fire.js
+    environment:
+      - REGISTRY_URL=ws://registry:5000
+    ports:
+      - "5003:5003"
+    volumes:
+      - server-data:/app/data
+    depends_on:
+      registry:
+        condition: service_healthy
+
+volumes:
+  server-data:

@@ -1,0 +1,20 @@
+{
+  "name": "emergency-services",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Multi-port emergency services: registry (5000), police (5001), hospital (5002), fire (5003)",
+  "scripts": {
+    "registry": "node registry.js",
+    "police": "node services/police.js",
+    "hospital": "node services/hospital.js",
+    "fire": "node services/fire.js",
+    "start:all": "node start-all.js",
+    "test:smoke": "node smoke-test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}
