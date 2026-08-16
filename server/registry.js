@@ -61,6 +61,7 @@ function upsertDevice(ws, payload) {
     lat: Number.isFinite(payload.lat) ? payload.lat : 0,
     lng: Number.isFinite(payload.lng) ? payload.lng : 0,
     gps: payload.gps !== false,
+    accuracy: Number.isFinite(payload.accuracy) ? payload.accuracy : null,
     ws,
     lastSeen: Date.now(),
   })
