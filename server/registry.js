@@ -60,6 +60,7 @@ function upsertDevice(ws, payload) {
     name: payload.name || nodeId,
     lat: Number.isFinite(payload.lat) ? payload.lat : 0,
     lng: Number.isFinite(payload.lng) ? payload.lng : 0,
+    gps: payload.gps !== false,
     ws,
     lastSeen: Date.now(),
   })
