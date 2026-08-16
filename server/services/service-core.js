@@ -6,6 +6,7 @@ import { MSG, pack, parse } from '../shared/protocol.js'
 import { haversineKm, formatDistanceKm } from '../shared/geo.js'
 import { computeTrust, verifiedFromScore, trustLabel, TRUST } from '../shared/trust.js'
 import { loadJson, debouncedSave } from '../shared/store.js'
+import { vapidPublicKey, sendPush, isValidSubscription } from '../shared/push.js'
 
 const REGISTRY_URL = process.env.REGISTRY_URL || 'ws://localhost:5000'
 const HEARTBEAT_MS = 5000
@@ -36,6 +37,7 @@ export function createService(config) {
     dashboards: new Set(),
     userConnections: new Set(),
     sourceHistory: new Map(saved?.sourceHistory ?? []),
+    pushSubs: new Map(saved?.pushSubs ?? []),
   }
 
   const persist = debouncedSave(`service-${id}.json`, () => ({
@@ -43,7 +45,24 @@ export function createService(config) {
     chat: state.chat,
     log: state.log,
     sourceHistory: [...state.sourceHistory.entries()],
+    pushSubs: [...state.pushSubs.entries()],
   }))
+
+  const notifyDispatchers = (incident) => {
+    const payload = {
+      title: `EMERGENCY ALERT — ${type}`,
+      body: `${incident.severity}${incident.verified === false ? ' (UNVERIFIED)' : ''}: ${incident.message || 'new incident'}`,
+      data: { url: '/', incidentId: incident.incidentId, type, lat: incident.lat, lng: incident.lng },
+    }
+    for (const [endpoint, sub] of state.pushSubs) {
+      sendPush(sub, payload).then((res) => {
+        if (res?.expired) {
+          state.pushSubs.delete(endpoint)
+          persist()
+        }
+      })
+    }
+  }
 
   const log = (entry) => {
     const rec = { ...entry, ts: Date.now() }
@@ -150,6 +169,7 @@ export function createService(config) {
     persist()
     recalcLoad()
     sendDashboards({ ...incident, ts: incident.receivedAt })
+    notifyDispatchers(incident)
     broadcastToUsers(pack(MSG.ALERT, { incident: { ...incident }, service: { id, name, type, port, lat, lng } }))
     log({ kind: 'ALERT_RECEIVED', incidentId, source, trustScore, verified, reason: verified ? 'trust ok' : `below verified threshold (${TRUST.VERIFIED_MIN})` })
     if (!verified) log({ kind: 'TRUST_FLAG', incidentId, source, trustScore })
@@ -358,6 +378,24 @@ export function createService(config) {
     handleMessage(msg, null)
     res.json({ ok: true })
   })
+
+  app.post('/api/push-subscribe', (req, res) => {
+    const sub = req.body?.subscription
+    if (!isValidSubscription(sub)) return res.status(400).json({ error: 'invalid subscription' })
+    state.pushSubs.set(sub.endpoint, sub)
+    persist()
+    res.json({ ok: true, count: state.pushSubs.size, label: req.body?.label || null })
+  })
+
+  app.post('/api/push-unsubscribe', (req, res) => {
+    if (typeof req.body?.endpoint === 'string') {
+      state.pushSubs.delete(req.body.endpoint)
+      persist()
+    }
+    res.json({ ok: true, count: state.pushSubs.size })
+  })
+
+  app.get('/api/push-count', (_req, res) => res.json({ count: state.pushSubs.size }))
 
   const wss = new WebSocketServer({ server })
 

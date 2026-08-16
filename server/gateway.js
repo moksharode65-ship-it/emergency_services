@@ -1,4 +1,18 @@
 import http from 'http'
+import fs from 'fs'
+import path from 'path'
+import url from 'url'
+
+// VAPID public key for browser push subscriptions (served so the frontend needs
+// no extra env var — it fetches the key from the gateway at runtime).
+const VAPID_FILE = path.join(path.dirname(url.fileURLToPath(import.meta.url)), 'vapid-keys.json')
+function readVapidPublic() {
+  try {
+    return JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8')).publicKey || null
+  } catch {
+    return null
+  }
+}
 
 // Single-port gateway: exposes the whole emergency-services stack on ONE port so it
 // deploys as a single service on Railway / Render / etc. Routes by path prefix:
@@ -30,6 +44,18 @@ function matchRoute(url) {
 }
 
 const server = http.createServer((req, res) => {
+  if (req.url === '/vapid-key') {
+    const key = readVapidPublic()
+    if (!key) {
+      res.writeHead(500, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ error: 'vapid keys not configured' }))
+      return
+    }
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'public, max-age=3600' })
+    res.end(JSON.stringify({ publicKey: key }))
+    return
+  }
+
   if (req.url === '/' || req.url === '/health') {
     res.writeHead(200, { 'content-type': 'application/json' })
     res.end(
