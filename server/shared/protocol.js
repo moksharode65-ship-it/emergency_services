@@ -29,6 +29,8 @@ export const MSG = {
   DEVICES: 'DEVICES',
   MESH_SEND: 'MESH_SEND',
   MESH_MSG: 'MESH_MSG',
+  MESH_SCAN: 'MESH_SCAN',
+  MESH_SCAN_RESPONSE: 'MESH_SCAN_RESPONSE',
 }
 
 export function pack(type, payload = {}) {

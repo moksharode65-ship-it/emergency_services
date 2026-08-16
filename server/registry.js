@@ -205,6 +205,21 @@ wss.on('connection', (ws) => {
         }
         break
       }
+      case MSG.MESH_SCAN: {
+        for (const [nodeId, d] of devices) {
+          if (nodeId !== payload.nodeId && d.ws.readyState === d.ws.OPEN) {
+            d.ws.send(pack(MSG.MESH_SCAN, { from: payload.nodeId }))
+          }
+        }
+        break
+      }
+      case MSG.MESH_SCAN_RESPONSE: {
+        const target = devices.get(payload.to)
+        if (target && target.ws.readyState === target.ws.OPEN) {
+          target.ws.send(pack(MSG.MESH_SCAN_RESPONSE, payload))
+        }
+        break
+      }
       default:
         break
     }
