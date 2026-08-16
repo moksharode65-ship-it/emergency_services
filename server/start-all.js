@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 
 const procs = [
+  { name: 'gateway', port: Number(process.env.PORT) || 8080, cmd: ['node', 'gateway.js'] },
   { name: 'registry', port: 5000, cmd: ['node', 'registry.js'] },
   { name: 'police', port: 5001, cmd: ['node', 'services/police.js'] },
   { name: 'hospital', port: 5002, cmd: ['node', 'services/hospital.js'] },
@@ -20,4 +21,4 @@ for (const p of procs) {
 process.on('SIGINT', () => { for (const c of children) c.kill('SIGINT'); process.exit(0) })
 process.on('SIGTERM', () => { for (const c of children) c.kill('SIGTERM'); process.exit(0) })
 
-console.log('started: registry :5000 · police :5001 · hospital :5002 · fire :5003')
+console.log(`started: gateway :${Number(process.env.PORT) || 8080} · registry :5000 · police :5001 · hospital :5002 · fire :5003`)

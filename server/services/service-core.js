@@ -1,5 +1,6 @@
 import express from 'express'
 import http from 'http'
+import cors from 'cors'
 import { WebSocketServer } from 'ws'
 import { MSG, pack, parse } from '../shared/protocol.js'
 import { haversineKm, formatDistanceKm } from '../shared/geo.js'
@@ -350,6 +351,7 @@ export function createService(config) {
   }
 
   app.use(express.json())
+  app.use(cors())
   app.post('/api/actions', (req, res) => {
     const msg = req.body
     if (!msg || !msg.type) return res.status(400).json({ error: 'type required' })
