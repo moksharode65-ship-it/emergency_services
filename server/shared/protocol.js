@@ -24,6 +24,11 @@ export const MSG = {
   LOG: 'LOG',
   PING: 'PING',
   PONG: 'PONG',
+  DEVICE_JOIN: 'DEVICE_JOIN',
+  DEVICE_UPDATE: 'DEVICE_UPDATE',
+  DEVICES: 'DEVICES',
+  MESH_SEND: 'MESH_SEND',
+  MESH_MSG: 'MESH_MSG',
 }
 
 export function pack(type, payload = {}) {

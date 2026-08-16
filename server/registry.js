@@ -15,6 +15,7 @@ const saved = loadJson('registry.json', null)
 const auditLog = saved?.auditLog ?? []
 const incidentLog = saved?.incidentLog ?? []
 const clients = new Set()
+const devices = new Map() // nodeId → { nodeId, name, lat, lng, ws, lastSeen } — online citizen devices
 
 const persist = debouncedSave('registry.json', () => ({
   auditLog: auditLog.slice(-200),
@@ -41,6 +42,28 @@ function snapshot() {
 
 function publishServices() {
   broadcast(pack(MSG.SERVICES, { services: snapshot() }))
+}
+
+function deviceSnapshot() {
+  return [...devices.values()].map(({ ws, ...rest }) => ({ ...rest }))
+}
+
+function publishDevices() {
+  broadcast(pack(MSG.DEVICES, { devices: deviceSnapshot() }))
+}
+
+function upsertDevice(ws, payload) {
+  const nodeId = payload.nodeId
+  if (!nodeId) return
+  devices.set(nodeId, {
+    nodeId,
+    name: payload.name || nodeId,
+    lat: Number.isFinite(payload.lat) ? payload.lat : 0,
+    lng: Number.isFinite(payload.lng) ? payload.lng : 0,
+    ws,
+    lastSeen: Date.now(),
+  })
+  publishDevices()
 }
 
 function registerService(svc, ws) {
@@ -72,6 +95,14 @@ function pruneStale() {
     }
   }
   if (changed) publishServices()
+  let devicesChanged = false
+  for (const [nodeId, d] of devices) {
+    if (now - d.lastSeen > HEARTBEAT_TIMEOUT_MS) {
+      devices.delete(nodeId)
+      devicesChanged = true
+    }
+  }
+  if (devicesChanged) publishDevices()
 }
 
 const app = express()
@@ -159,6 +190,20 @@ wss.on('connection', (ws) => {
         persist()
         broadcast(pack(MSG.INCIDENT_UPDATE, payload))
         break
+      case MSG.DEVICE_JOIN:
+        upsertDevice(ws, payload)
+        logAudit({ kind: 'DEVICE_JOIN', id: payload.nodeId, name: payload.name })
+        break
+      case MSG.DEVICE_UPDATE:
+        upsertDevice(ws, payload)
+        break
+      case MSG.MESH_SEND: {
+        const target = devices.get(payload.to)
+        if (target && target.ws.readyState === target.ws.OPEN) {
+          target.ws.send(pack(MSG.MESH_MSG, payload))
+        }
+        break
+      }
       default:
         break
     }
@@ -167,6 +212,14 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     clients.delete(ws)
     logAudit({ kind: 'CLIENT_DISCONNECT' })
+    let changed = false
+    for (const [nodeId, d] of devices) {
+      if (d.ws === ws) {
+        devices.delete(nodeId)
+        changed = true
+      }
+    }
+    if (changed) publishDevices()
   })
 })
 
